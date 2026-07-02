@@ -135,3 +135,15 @@ export function useAuth() {
 
   return { ...state, login, logout, consumeNewUser };
 }
+
+// ─── Combined Store Hook ──────────────────────────────────────────────────────
+export function useStore() {
+  const tasks_hook = useTasks();
+  const checkins_hook = useCheckIns();
+  const auth_hook = useAuth();
+  return {
+    ...tasks_hook,
+    ...checkins_hook,
+    ...auth_hook,
+  };
+}

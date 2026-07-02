@@ -1,206 +1,109 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Header } from '../components/Header';
-import { Icon } from '../components/Icon';
+import { Layout } from '../components/Layout';
 import { useTasks } from '../stores/useStore';
-import { CATEGORIES, type CategoryId } from '../types';
+import type { Task, CategoryId } from '../types';
 import { format } from 'date-fns';
 
-export function CreateTask() {
-  const navigate = useNavigate();
-  const [params] = useSearchParams();
-  const { addTask } = useTasks();
+const PILARES = [
+  { id: 'health' as CategoryId, label: 'Saude', color: '#9EB8A0' },
+  { id: 'work' as CategoryId, label: 'Trabalho', color: '#A58E74' },
+  { id: 'relation' as CategoryId, label: 'Relacionamentos', color: '#C9A0A0' },
+  { id: 'finance' as CategoryId, label: 'Financas', color: '#A0A9C9' },
+  { id: 'leisure' as CategoryId, label: 'Lazer', color: '#C9C0A0' },
+  { id: 'self' as CategoryId, label: 'Autoconhecimento', color: '#B0A0C9' },
+];
 
-  const defaultDate = params.get('date') || format(new Date(), 'yyyy-MM-dd');
-  const isAppointmentDefault = params.get('type') === 'appointment';
+export default function CreateTask() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { addTask } = useTasks();
+  const defaultDate = searchParams.get('date') || format(new Date(), 'yyyy-MM-dd');
 
   const [title, setTitle] = useState('');
+  const [why, setWhy] = useState('');
   const [categoryId, setCategoryId] = useState<CategoryId | null>(null);
   const [date, setDate] = useState(defaultDate);
   const [time, setTime] = useState('');
-  const [endTime, setEndTime] = useState('');
-  const [why, setWhy] = useState('');
-  const [isAppointment, setIsAppointment] = useState(isAppointmentDefault);
-  const [showWhy, setShowWhy] = useState(false);
-  const [error, setError] = useState('');
+  const [notes, setNotes] = useState('');
 
-  function handleSave() {
-    if (!title.trim()) { setError('Adicione um titulo para a tarefa.'); return; }
-    addTask({
-      id: crypto.randomUUID(),
+  const handleSave = () => {
+    if (!title.trim()) return;
+    const task: Task = {
+      id: Date.now().toString(),
       title: title.trim(),
+      why: why.trim() || null,
       categoryId,
       date,
       time: time || null,
-      endTime: endTime || null,
-      why: why.trim() || null,
+      endTime: null,
       status: 'pending',
-      isAppointment,
+      isAppointment: false,
       createdAt: new Date().toISOString(),
-    });
+    };
+    addTask(task);
     navigate(-1);
-  }
+  };
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <Header
-        title={isAppointment ? 'Novo compromisso' : 'Nova tarefa'}
-        showBack
-        rightAction={
-          <button
-            onClick={handleSave}
-            style={{
-              padding: '8px 18px', borderRadius: 20,
-              backgroundColor: 'var(--primary)', color: '#EEEFE9',
-              fontSize: 14, fontWeight: 600,
-            }}
-          >
-            Salvar
-          </button>
-        }
-      />
-
-      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 20px 40px' }}>
-        {/* Type toggle */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
-          {[false, true].map(isAppt => (
-            <button
-              key={String(isAppt)}
-              onClick={() => setIsAppointment(isAppt)}
-              style={{
-                flex: 1, padding: '10px', borderRadius: 12, fontSize: 14, fontWeight: 500,
-                backgroundColor: isAppointment === isAppt ? 'var(--foreground)' : 'var(--surface)',
-                color: isAppointment === isAppt ? 'var(--bg)' : 'var(--muted)',
-                border: '1px solid ' + (isAppointment === isAppt ? 'transparent' : 'var(--border)'),
-              }}
-            >
-              {isAppt ? 'Compromisso' : 'Tarefa'}
-            </button>
-          ))}
-        </div>
-
-        {/* Title */}
-        <div style={{ marginBottom: 20 }}>
-          <input
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder={isAppointment ? 'Ex: Consulta medica' : 'Ex: Ir ao hortifruti'}
-            style={{
-              width: '100%', padding: '16px', borderRadius: 14,
-              border: '1.5px solid var(--border)', backgroundColor: 'var(--surface)',
-              fontSize: 17, fontWeight: 500, color: 'var(--foreground)',
-            }}
-          />
-          {error && <p style={{ fontSize: 13, color: 'var(--error)', marginTop: 6 }}>{error}</p>}
-        </div>
-
-        {/* Date */}
-        <Field label="Data">
-          <input
-            type="date" value={date} onChange={e => setDate(e.target.value)}
-            style={fieldInputStyle}
-          />
-        </Field>
-
-        {/* Time */}
-        {(isAppointment || time) && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-            <Field label="Inicio">
-              <input type="time" value={time} onChange={e => setTime(e.target.value)} style={fieldInputStyle} />
-            </Field>
-            <Field label="Fim (opcional)">
-              <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} style={fieldInputStyle} />
-            </Field>
-          </div>
-        )}
-        {!isAppointment && !time && (
-          <button
-            onClick={() => setTime('09:00')}
-            style={{ fontSize: 13, color: 'var(--primary-dark)', fontWeight: 500, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 6 }}
-          >
-            <Icon name="clock" size={14} /> Adicionar horario
-          </button>
-        )}
-
-        {/* Category */}
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--muted)', display: 'block', marginBottom: 10 }}>
-            Pilar de vida
-          </label>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {CATEGORIES.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => setCategoryId(categoryId === cat.id ? null : cat.id)}
-                style={{
-                  padding: '7px 14px', borderRadius: 20, fontSize: 13, fontWeight: 500,
-                  backgroundColor: categoryId === cat.id ? cat.color : 'var(--surface)',
-                  color: categoryId === cat.id ? '#fff' : 'var(--muted)',
-                  border: '1px solid ' + (categoryId === cat.id ? 'transparent' : 'var(--border)'),
-                  transition: 'all 0.15s',
-                }}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Why */}
-        <div style={{ marginBottom: 20 }}>
-          {!showWhy ? (
-            <button
-              onClick={() => setShowWhy(true)}
-              style={{
-                width: '100%', padding: '14px', borderRadius: 14,
-                border: '1.5px dashed var(--border)', backgroundColor: 'transparent',
-                fontSize: 14, color: 'var(--muted)', textAlign: 'left',
-                display: 'flex', alignItems: 'center', gap: 10,
-              }}
-            >
-              <Icon name="heart" size={16} color="var(--primary)" />
-              Por que isso importa pra voce agora? (opcional)
-            </button>
-          ) : (
-            <div>
-              <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--muted)', display: 'block', marginBottom: 8 }}>
-                Por que isso importa pra voce agora?
-              </label>
-              <textarea
-                value={why}
-                onChange={e => setWhy(e.target.value.slice(0, 140))}
-                placeholder="Escreva livremente..."
-                rows={3}
-                style={{
-                  width: '100%', padding: '14px', borderRadius: 14,
-                  border: '1.5px solid var(--border)', backgroundColor: 'var(--surface)',
-                  fontSize: 14, color: 'var(--foreground)', resize: 'none', lineHeight: 1.6,
-                }}
-              />
-              <p style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'right', marginTop: 4 }}>
-                {why.length}/140
-              </p>
+    <Layout title="Nova Tarefa" subtitle="Adicione uma tarefa com intencao">
+      <div style={{ maxWidth: 760, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        <div>
+          <div className="card" style={{ marginBottom: 20 }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 700, marginBottom: 20, color: 'var(--text-primary)' }}>Detalhes da Tarefa</h3>
+            <div className="form-group">
+              <label className="form-label">Titulo *</label>
+              <input className="form-input" type="text" placeholder="O que voce precisa fazer?" value={title} onChange={e => setTitle(e.target.value)} autoFocus />
             </div>
-          )}
+            <div className="form-group">
+              <label className="form-label">Por que isso importa?</label>
+              <textarea className="form-textarea" placeholder="Qual e o proposito desta tarefa?" value={why} onChange={e => setWhy(e.target.value)} rows={3} />
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>O "porque" torna sua tarefa mais significativa</span>
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Notas adicionais</label>
+              <textarea className="form-textarea" placeholder="Detalhes, lembretes..." value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div className="card" style={{ marginBottom: 20 }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 700, marginBottom: 20, color: 'var(--text-primary)' }}>Pilar TCC</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {PILARES.map(p => (
+                <button key={p.id} onClick={() => setCategoryId(p.id)} style={{
+                  padding: '10px 12px', borderRadius: 8, border: `2px solid ${categoryId === p.id ? p.color : 'var(--border)'}`,
+                  background: categoryId === p.id ? p.color + '18' : 'white', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
+                  <span style={{ fontSize: '0.8rem', fontWeight: 500, color: categoryId === p.id ? p.color : 'var(--text-secondary)' }}>{p.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="card">
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 700, marginBottom: 20, color: 'var(--text-primary)' }}>Quando?</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Data</label>
+                <input className="form-input" type="date" value={date} onChange={e => setDate(e.target.value)} />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Horario</label>
+                <input className="form-input" type="time" value={time} onChange={e => setTime(e.target.value)} />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+
+      <div style={{ display: 'flex', gap: 12, marginTop: 24, maxWidth: 760 }}>
+        <button className="btn btn-secondary btn-lg" style={{ flex: 1 }} onClick={() => navigate(-1)}>Cancelar</button>
+        <button className="btn btn-primary btn-lg" style={{ flex: 2 }} onClick={handleSave} disabled={!title.trim()}>Salvar Tarefa</button>
+      </div>
+    </Layout>
   );
 }
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 20 }}>
-      <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--muted)', display: 'block', marginBottom: 8 }}>
-        {label}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-const fieldInputStyle: React.CSSProperties = {
-  width: '100%', padding: '12px 14px', borderRadius: 12,
-  border: '1.5px solid var(--border)', backgroundColor: 'var(--surface)',
-  fontSize: 14, color: 'var(--foreground)',
-};

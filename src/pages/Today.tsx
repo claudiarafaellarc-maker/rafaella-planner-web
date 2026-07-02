@@ -1,259 +1,148 @@
 import { useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Header } from '../components/Header';
-import { Icon } from '../components/Icon';
+import { Layout } from '../components/Layout';
 import { useTasks } from '../stores/useStore';
-import { CATEGORIES } from '../types';
-import { format, parseISO, isToday } from 'date-fns';
+import type { Task } from '../types';
+import { format, addDays, subDays, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-function todayStr() {
-  return format(new Date(), 'yyyy-MM-dd');
-}
+const PILARES = [
+  { id: 'all', label: 'Todos', color: 'var(--color-brown-dark)' },
+  { id: 'health', label: 'Saude', color: '#9EB8A0' },
+  { id: 'work', label: 'Trabalho', color: '#A58E74' },
+  { id: 'relation', label: 'Relacionamentos', color: '#C9A0A0' },
+  { id: 'finance', label: 'Financas', color: '#A0A9C9' },
+  { id: 'leisure', label: 'Lazer', color: '#C9C0A0' },
+  { id: 'self', label: 'Autoconhecimento', color: '#B0A0C9' },
+];
 
-export function Today() {
+const ChevronLeft = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>;
+const ChevronRight = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>;
+const CheckIcon = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
+
+export default function Today() {
   const navigate = useNavigate();
-  const [params] = useSearchParams();
-  const dateParam = params.get('date') || todayStr();
-  const { getTasksByDate, updateTask } = useTasks();
-  const [view, setView] = useState<'agenda' | 'tasks'>('agenda');
+  const [searchParams] = useSearchParams();
+  const { tasks, updateTask } = useTasks();
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [activeFilter, setActiveFilter] = useState(searchParams.get('pilar') || 'all');
 
-  const tasks = getTasksByDate(dateParam);
-  const appointments = useMemo(() =>
-    tasks.filter(t => t.isAppointment && t.time).sort((a, b) => (a.time || '').localeCompare(b.time || '')),
-    [tasks]);
-  const taskList = useMemo(() =>
-    tasks.filter(t => !t.isAppointment || !t.time),
-    [tasks]);
+  const dateStr = format(selectedDate, 'yyyy-MM-dd');
+  const dayTasks = useMemo(() => {
+    let t = tasks.filter((t: Task) => t.date === dateStr);
+    if (activeFilter !== 'all') t = t.filter((t: Task) => t.categoryId === activeFilter);
+    return t.sort((a: Task, b: Task) => (a.time || '').localeCompare(b.time || ''));
+  }, [tasks, dateStr, activeFilter]);
 
-  const dateObj = parseISO(dateParam);
-  const isCurrentDay = isToday(dateObj);
+  const pending = dayTasks.filter((t: Task) => t.status !== 'done');
+  const completed = dayTasks.filter((t: Task) => t.status === 'done');
+  const progress = dayTasks.length > 0 ? Math.round((completed.length / dayTasks.length) * 100) : 0;
 
-  function toggleDone(id: string, current: string) {
-    updateTask(id, { status: current === 'done' ? 'pending' : 'done' });
-  }
-
-  const title = isCurrentDay ? 'Hoje' : format(dateObj, "d 'de' MMMM", { locale: ptBR });
+  const toggleTask = (task: Task) => {
+    updateTask(task.id, { status: task.status === 'done' ? 'pending' : 'done' });
+  };
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <Header
-        title={title}
-        subtitle={format(dateObj, "EEEE, d 'de' MMMM", { locale: ptBR })}
-        rightAction={
-          <button
-            onClick={() => navigate('/task/create?date=' + dateParam)}
-            style={{
-              width: 36, height: 36, borderRadius: '50%',
-              backgroundColor: 'var(--primary)', color: '#EEEFE9',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <Icon name="plus" size={18} />
-          </button>
-        }
-      />
+    <Layout
+      title={isToday(selectedDate) ? 'Agenda de Hoje' : format(selectedDate, "d 'de' MMMM", { locale: ptBR })}
+      subtitle={format(selectedDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+    >
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+        <div className="card card-sm" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <button className="btn btn-secondary btn-sm" style={{ padding: '8px 12px' }} onClick={() => setSelectedDate(d => subDays(d, 1))}><ChevronLeft /></button>
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>
+              {isToday(selectedDate) ? 'Hoje' : format(selectedDate, "d MMM", { locale: ptBR })}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{dayTasks.length} tarefa{dayTasks.length !== 1 ? 's' : ''}</div>
+          </div>
+          <button className="btn btn-secondary btn-sm" style={{ padding: '8px 12px' }} onClick={() => setSelectedDate(d => addDays(d, 1))}><ChevronRight /></button>
+        </div>
+        <div className="card card-sm">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Progresso</span>
+            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.2rem', color: 'var(--text-primary)' }}>{progress}%</span>
+          </div>
+          <div style={{ height: 6, background: 'var(--color-brown-cream)', borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${progress}%`, background: 'var(--color-brown-dark)', borderRadius: 3, transition: 'width 0.4s ease' }} />
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 8 }}>{completed.length} de {dayTasks.length} concluidas</div>
+        </div>
+      </div>
 
-      {/* View toggle */}
-      <div style={{ display: 'flex', padding: '0 20px 16px', gap: 8 }}>
-        {(['agenda', 'tasks'] as const).map(v => (
-          <button
-            key={v}
-            onClick={() => setView(v)}
-            style={{
-              padding: '7px 16px', borderRadius: 20, fontSize: 13, fontWeight: 500,
-              backgroundColor: view === v ? 'var(--primary)' : 'var(--surface)',
-              color: view === v ? '#EEEFE9' : 'var(--muted)',
-              border: '1px solid ' + (view === v ? 'transparent' : 'var(--border)'),
-              transition: 'all 0.15s',
-            }}
-          >
-            {v === 'agenda' ? 'Agenda' : 'Tarefas'}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
+        {PILARES.map(p => (
+          <button key={p.id} className={`pilar-chip${activeFilter === p.id ? ' selected' : ''}`} onClick={() => setActiveFilter(p.id)}>
+            {p.id !== 'all' && <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, display: 'inline-block' }} />}
+            {p.label}
           </button>
         ))}
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 20px' }}>
-        {view === 'agenda' ? (
-          <div>
-            {appointments.length === 0 ? (
-              <EmptyState
-                message="Nenhum compromisso com horario."
-                action="+ Adicionar compromisso"
-                onAction={() => navigate('/task/create?date=' + dateParam + '&type=appointment')}
-              />
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {appointments.map(task => {
-                  const cat = CATEGORIES.find(c => c.id === task.categoryId);
-                  return (
-                    <button
-                      key={task.id}
-                      onClick={() => navigate('/task/' + task.id)}
-                      style={{
-                        display: 'flex', gap: 14, textAlign: 'left',
-                        padding: '14px', borderRadius: 14,
-                        backgroundColor: 'var(--surface)',
-                        border: '1px solid var(--border)',
-                        width: '100%',
-                      }}
-                    >
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 44 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--primary-dark)' }}>{task.time}</span>
-                        {task.endTime && (
-                          <>
-                            <div style={{ width: 1, flex: 1, backgroundColor: 'var(--border)', minHeight: 12 }} />
-                            <span style={{ fontSize: 11, color: 'var(--muted)' }}>{task.endTime}</span>
-                          </>
-                        )}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                          {cat && (
-                            <span style={{
-                              fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 10,
-                              backgroundColor: cat.color + '22', color: cat.color,
-                            }}>
-                              {cat.name}
-                            </span>
-                          )}
-                        </div>
-                        <p style={{
-                          fontSize: 15, fontWeight: 500, color: 'var(--foreground)',
-                          textDecoration: task.status === 'done' ? 'line-through' : 'none',
-                          opacity: task.status === 'done' ? 0.5 : 1,
-                        }}>
-                          {task.title}
-                        </p>
-                        {task.why && (
-                          <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4, fontStyle: 'italic' }}>
-                            "{task.why}"
-                          </p>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              Pendentes <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-muted)', marginLeft: 6 }}>{pending.length}</span>
+            </h2>
+            <button className="btn btn-primary btn-sm" onClick={() => navigate(`/task/create?date=${dateStr}`)}>+ Nova</button>
           </div>
-        ) : (
-          <div>
-            {taskList.length === 0 ? (
-              <EmptyState
-                message="Nenhuma tarefa para hoje."
-                action="+ Adicionar tarefa"
-                onAction={() => navigate('/task/create?date=' + dateParam)}
-              />
-            ) : (
-              <div>
-                {CATEGORIES.map(cat => {
-                  const catTasks = taskList.filter(t => t.categoryId === cat.id);
-                  if (catTasks.length === 0) return null;
-                  return (
-                    <div key={cat.id} style={{ marginBottom: 20 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                        <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: cat.color }} />
-                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                          {cat.name}
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {catTasks.map(task => (
-                          <TaskItem
-                            key={task.id}
-                            task={task}
-                            onToggle={() => toggleDone(task.id, task.status)}
-                            onPress={() => navigate('/task/' + task.id)}
-                          />
-                        ))}
-                      </div>
+          {pending.length === 0 ? (
+            <div className="empty-state" style={{ padding: '40px 20px' }}>
+              <div className="empty-state-icon">✅</div>
+              <div className="empty-state-title">Tudo concluido!</div>
+              <div className="empty-state-text">Nenhuma tarefa pendente para este dia</div>
+            </div>
+          ) : (
+            pending.map((task: Task) => {
+              const pilar = PILARES.find(p => p.id === task.categoryId);
+              return (
+                <div key={task.id} className="task-item" onClick={() => navigate(`/task/${task.id}`)}>
+                  <div className="task-checkbox" onClick={e => { e.stopPropagation(); toggleTask(task); }} style={{ borderColor: pilar?.color }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="task-title">{task.title}</div>
+                    <div className="task-meta">
+                      {pilar && pilar.id !== 'all' && <span className="badge" style={{ background: pilar.color + '22', color: pilar.color }}>{pilar.label}</span>}
+                      {task.time && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{task.time}</span>}
                     </div>
-                  );
-                })}
-                {/* Uncategorized */}
-                {taskList.filter(t => !t.categoryId).length > 0 && (
-                  <div style={{ marginBottom: 20 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                      <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: 'var(--border)' }} />
-                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                        Sem categoria
-                      </span>
-                    </div>
-                    {taskList.filter(t => !t.categoryId).map(task => (
-                      <TaskItem
-                        key={task.id}
-                        task={task}
-                        onToggle={() => toggleDone(task.id, task.status)}
-                        onPress={() => navigate('/task/' + task.id)}
-                      />
-                    ))}
+                    {task.why && <div className="task-why">"{task.why}"</div>}
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <div>
+          <div style={{ marginBottom: 16 }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              Concluidas <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-muted)', marginLeft: 6 }}>{completed.length}</span>
+            </h2>
           </div>
-        )}
+          {completed.length === 0 ? (
+            <div className="empty-state" style={{ padding: '40px 20px' }}>
+              <div className="empty-state-icon">📋</div>
+              <div className="empty-state-title">Nenhuma concluida</div>
+              <div className="empty-state-text">Complete suas tarefas para ve-las aqui</div>
+            </div>
+          ) : (
+            completed.map((task: Task) => {
+              const pilar = PILARES.find(p => p.id === task.categoryId);
+              return (
+                <div key={task.id} className="task-item completed" onClick={() => navigate(`/task/${task.id}`)}>
+                  <div className="task-checkbox checked" onClick={e => { e.stopPropagation(); toggleTask(task); }} style={{ borderColor: pilar?.color, background: pilar?.color }}>
+                    <CheckIcon />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="task-title">{task.title}</div>
+                    {pilar && pilar.id !== 'all' && <div className="task-meta"><span className="badge" style={{ background: pilar.color + '22', color: pilar.color }}>{pilar.label}</span></div>}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
-
-      {/* Check-in floating button */}
-      {isCurrentDay && (
-        <button
-          onClick={() => navigate('/checkin')}
-          style={{
-            position: 'absolute', bottom: 80, right: 20,
-            padding: '12px 18px', borderRadius: 24,
-            backgroundColor: 'var(--foreground)', color: 'var(--bg)',
-            fontSize: 13, fontWeight: 600,
-            display: 'flex', alignItems: 'center', gap: 8,
-            boxShadow: 'var(--shadow-md)',
-          }}
-        >
-          <span>Como foi seu dia?</span>
-        </button>
-      )}
-    </div>
-  );
-}
-
-function TaskItem({ task, onToggle, onPress }: { task: any; onToggle: () => void; onPress: () => void }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-      <button
-        onClick={e => { e.stopPropagation(); onToggle(); }}
-        style={{
-          width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-          border: '1.5px solid ' + (task.status === 'done' ? 'var(--success)' : 'var(--border)'),
-          backgroundColor: task.status === 'done' ? 'var(--success)' : 'transparent',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}
-      >
-        {task.status === 'done' && <Icon name="check" size={12} color="#fff" />}
-      </button>
-      <button onClick={onPress} style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
-        <p style={{
-          fontSize: 14, fontWeight: 500, color: 'var(--foreground)',
-          textDecoration: task.status === 'done' ? 'line-through' : 'none',
-          opacity: task.status === 'done' ? 0.5 : 1,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {task.title}
-        </p>
-        {task.why && task.status !== 'done' && (
-          <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {task.why}
-          </p>
-        )}
-      </button>
-    </div>
-  );
-}
-
-function EmptyState({ message, action, onAction }: { message: string; action: string; onAction: () => void }) {
-  return (
-    <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--muted)' }}>
-      <p style={{ fontSize: 14, marginBottom: 12 }}>{message}</p>
-      <button onClick={onAction} style={{ fontSize: 14, color: 'var(--primary-dark)', fontWeight: 500 }}>{action}</button>
-    </div>
+    </Layout>
   );
 }
