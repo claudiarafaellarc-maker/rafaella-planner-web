@@ -14,7 +14,7 @@ const PILARES = [
   { id: 'self' as CategoryId, label: 'Autoconhecimento', color: '#B0A0C9' },
 ];
 
-export default function CreateTask() {
+export function CreateTask() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { addTask } = useTasks();
@@ -46,7 +46,7 @@ export default function CreateTask() {
   };
 
   return (
-    <Layout title="Nova Tarefa" subtitle="Adicione uma tarefa com intencao">
+    <Layout>
       <div style={{ maxWidth: 760, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
         <div>
           <div className="card" style={{ marginBottom: 20 }}>

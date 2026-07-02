@@ -20,7 +20,7 @@ const ChevronLeft = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="
 const ChevronRight = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>;
 const CheckIcon = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
 
-export default function Today() {
+export function Today() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { tasks, updateTask } = useTasks();
@@ -43,10 +43,7 @@ export default function Today() {
   };
 
   return (
-    <Layout
-      title={isToday(selectedDate) ? 'Agenda de Hoje' : format(selectedDate, "d 'de' MMMM", { locale: ptBR })}
-      subtitle={format(selectedDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
-    >
+    <Layout>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
         <div className="card card-sm" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <button className="btn btn-secondary btn-sm" style={{ padding: '8px 12px' }} onClick={() => setSelectedDate(d => subDays(d, 1))}><ChevronLeft /></button>
