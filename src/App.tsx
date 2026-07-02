@@ -12,8 +12,13 @@ import { Insights } from './pages/Insights';
 import { Settings } from './pages/Settings';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, consumeNewUser } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+  // Redirect new users to onboarding (only once)
+  const isNew = consumeNewUser();
+  if (isNew && window.location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" replace />;
+  }
   return <>{children}</>;
 }
 
