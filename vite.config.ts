@@ -2,7 +2,10 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const isGHPages = process.env.GITHUB_PAGES === 'true';
+
 export default defineConfig({
+  base: isGHPages ? '/rafaella-planner-web/' : '/',
   plugins: [
     react(),
     VitePWA({
